@@ -388,6 +388,26 @@ async def test_hold_call_with_call_index(
 
 # -----------------------------------------------------------------------------
 @pytest.mark.asyncio
+async def test_hold_call_with_unknown_call_index(
+    hfp_connections: tuple[hfp.HfProtocol, hfp.AgProtocol],
+):
+    hf, ag = hfp_connections
+    call_hold_events = []
+    ag.on("call_hold", lambda op, index: call_hold_events.append((op, index)))
+
+    with pytest.raises(hfp.HfpProtocolError):
+        await hf.execute_command("AT+CHLD=11")
+
+    # The next command must get its own response, not a leftover OK.
+    response = await hf.execute_command(
+        "AT+CIND?", response_type=hfp.AtResponseType.SINGLE
+    )
+    assert response.code == "+CIND"
+    assert not call_hold_events
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.asyncio
 async def test_ring(hfp_connections: tuple[hfp.HfProtocol, hfp.AgProtocol]):
     hf, ag = hfp_connections
     ring_future = asyncio.get_running_loop().create_future()
